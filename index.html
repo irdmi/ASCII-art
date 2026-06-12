@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ASCII-арт · локальный конвертер</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      background-color: #0c0c0c;
+      color: #33ff33;
+      font-family: 'Courier New', monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem;
+    }
+    .terminal {
+      max-width: 1000px;
+      width: 100%;
+      border: 2px solid #33ff33;
+      border-radius: 8px;
+      padding: 1.5rem;
+      background-color: #0a0a0a;
+      box-shadow: 0 0 15px rgba(51, 255, 51, 0.2);
+    }
+    h1 {
+      font-size: 1.8rem;
+      margin-bottom: 1.2rem;
+      text-shadow: 0 0 5px #33ff33;
+      letter-spacing: 2px;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      padding: 1rem;
+      background: #111;
+      border: 1px dashed #33ff33;
+      border-radius: 5px;
+    }
+    label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      cursor: pointer;
+    }
+    input[type="file"] {
+      color: #33ff33;
+      background: transparent;
+      border: 1px solid #33ff33;
+      padding: 0.3rem;
+      border-radius: 4px;
+      font-family: inherit;
+    }
+    input[type="range"] {
+      accent-color: #33ff33;
+    }
+    button {
+      background: #33ff33;
+      color: #000;
+      border: none;
+      padding: 0.4rem 1rem;
+      font-weight: bold;
+      font-family: inherit;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    button:hover {
+      background: #00cc00;
+      box-shadow: 0 0 10px #33ff33;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .error {
+      color: #ff5555;
+      background: #1a0000;
+      border: 1px solid #ff5555;
+      padding: 0.5rem;
+      margin-bottom: 1rem;
+      display: none;
+    }
+    pre {
+      background: #000;
+      color: #33ff33;
+      padding: 1rem;
+      border: 1px solid #33ff33;
+      border-radius: 5px;
+      overflow-x: auto;
+      font-size: 0.5rem;        /* маленький шрифт для читаемого арта */
+      line-height: 1;
+      white-space: pre;
+      max-height: 70vh;
+      overflow-y: auto;
+      margin-top: 1rem;
+    }
+    .footer-note {
+      margin-top: 1rem;
+      font-size: 0.8rem;
+      opacity: 0.7;
+    }
+    #widthValue {
+      font-weight: bold;
+    }
+    @media (max-width: 600px) {
+      .controls {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="terminal">
+    <h1>▸ ASCII_ART.LOCAL</h1>
+
+    <div id="jsonError" class="error"></div>
+
+    <div class="controls">
+      <label>
+        📁 Выбрать картинку
+        <input type="file" id="imageInput" accept="image/*">
+      </label>
+
+      <label>
+        🔤 Ширина (символов)
+        <input type="range" id="widthSlider" min="30" max="200" value="100" step="5">
+        <span id="widthValue">100</span>
+      </label>
+
+      <button id="copyBtn" disabled>📋 Копировать</button>
+      <button id="downloadBtn" disabled>💾 Сохранить .txt</button>
+    </div>
+
+    <pre id="output">// выберите изображение, чтобы увидеть ASCII-арт</pre>
+    <div class="footer-note">charset.json · всё работает локально · без интернета</div>
+  </div>
+
+  <script>
+    (function() {
+      // --- элементы DOM ---
+      const imageInput = document.getElementById('imageInput');
+      const widthSlider = document.getElementById('widthSlider');
+      const widthValue = document.getElementById('widthValue');
+      const outputPre = document.getElementById('output');
+      const downloadBtn = document.getElementById('downloadBtn');
+      const copyBtn = document.getElementById('copyBtn');
+      const jsonErrorDiv = document.getElementById('jsonError');
+
+      // --- состояние ---
+      let asciiChars = [];            // загруженный из JSON массив
+      let currentImage = null;       // объект HTMLImageElement
+      let currentAscii = '';         // последний сгенерированный арт
+
+      // --- загрузка charset.json ---
+      async function loadCharset() {
+        try {
+          const response = await fetch('charset.json');
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const data = await response.json();
+          if (!Array.isArray(data) || data.length === 0) {
+            throw new Error('JSON должен быть непустым массивом строк');
+          }
+          asciiChars = data;
+          jsonErrorDiv.style.display = 'none';
+          console.log('Charset загружен:', asciiChars);
+        } catch (err) {
+          jsonErrorDiv.style.display = 'block';
+          jsonErrorDiv.textContent = `⚠️ Ошибка загрузки charset.json: ${err.message}. Использую стандартный набор.`;
+          // fallback — стандартный набор
+          asciiChars = ['@', '%', '#', '*', '+', '=', '-', ':', '.', ' '];
+        }
+      }
+
+      // --- конвертация изображения в ASCII ---
+      function imageToAscii(img, width) {
+        // рассчитываем высоту с поправкой на пропорции символов (~0.55)
+        const aspectRatio = img.height / img.width;
+        const symbolRatio = 0.55;   // коэффициент сжатия по вертикали для моноширинного шрифта
+        const height = Math.floor(width * aspectRatio * symbolRatio);
+
+        // создаём canvas и рисуем уменьшенное изображение
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // получаем данные пикселей
+        const imageData = ctx.getImageData(0, 0, width, height);
+        const pixels = imageData.data; // [r,g,b,a, r,g,b,a, ...]
+
+        let asciiStr = '';
+        const charCount = asciiChars.length;
+
+        for (let y = 0; y < height; y++) {
+          for (let x = 0; x < width; x++) {
+            const idx = (y * width + x) * 4;
+            const r = pixels[idx];
+            const g = pixels[idx + 1];
+            const b = pixels[idx + 2];
+            // перевод в оттенок серого (стандартная яркость)
+            const gray = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+            // маппинг 0..255 на индекс символа (0 — самый тёмный символ)
+            const charIndex = Math.floor(gray / 255 * (charCount - 1));
+            asciiStr += asciiChars[charIndex];
+          }
+          asciiStr += '\n';
+        }
+        return asciiStr;
+      }
+
+      // --- обновление вывода ---
+      async function updateAscii() {
+        if (!currentImage) {
+          outputPre.textContent = '// выберите изображение, чтобы увидеть ASCII-арт';
+          downloadBtn.disabled = true;
+          copyBtn.disabled = true;
+          return;
+        }
+
+        const width = parseInt(widthSlider.value, 10);
+        if (!asciiChars.length) {
+          outputPre.textContent = '// ожидание загрузки charset.json...';
+          return;
+        }
+
+        // конвертируем (может быть немного тяжёлым, используем setTimeout для отзывчивости)
+        setTimeout(() => {
+          try {
+            currentAscii = imageToAscii(currentImage, width);
+            outputPre.textContent = currentAscii;
+            downloadBtn.disabled = false;
+            copyBtn.disabled = false;
+          } catch (e) {
+            outputPre.textContent = `// ошибка: ${e.message}`;
+            downloadBtn.disabled = true;
+            copyBtn.disabled = true;
+          }
+        }, 10);
+      }
+
+      // --- загрузка изображения из файла ---
+      imageInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const img = new Image();
+          img.onload = () => {
+            currentImage = img;
+            updateAscii();
+          };
+          img.onerror = () => {
+            outputPre.textContent = '// не удалось загрузить изображение';
+            currentImage = null;
+            downloadBtn.disabled = true;
+            copyBtn.disabled = true;
+          };
+          img.src = ev.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+
+      // --- изменение ширины ---
+      widthSlider.addEventListener('input', () => {
+        widthValue.textContent = widthSlider.value;
+        updateAscii();
+      });
+
+      // --- скачивание результата ---
+      downloadBtn.addEventListener('click', () => {
+        if (!currentAscii) return;
+        const blob = new Blob([currentAscii], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'ascii_art.txt';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      });
+
+      // --- копирование в буфер обмена ---
+      copyBtn.addEventListener('click', async () => {
+        if (!currentAscii) return;
+
+        try {
+          // современный API
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(currentAscii);
+          } else {
+            // fallback для старых браузеров (textarea)
+            const textarea = document.createElement('textarea');
+            textarea.value = currentAscii;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+          }
+
+          // визуальный фидбэк
+          const originalText = copyBtn.textContent;
+          copyBtn.textContent = '✓ Скопировано';
+          copyBtn.style.background = '#00cc00';
+          setTimeout(() => {
+            copyBtn.textContent = originalText;
+            copyBtn.style.background = '#33ff33';
+          }, 1500);
+        } catch (err) {
+          alert('Не удалось скопировать: ' + err);
+        }
+      });
+
+      // --- инициализация ---
+      loadCharset().then(() => {
+        updateAscii();
+      });
+    })();
+  </script>
+</body>
+</html>
