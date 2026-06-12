@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ASCII-арт · локальный конвертер (v2)</title>
+  <title>ASCII-арт · локальный конвертер (расширенный)</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -27,7 +27,6 @@
     label { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; }
     input[type="file"] { color:#33ff33; background:transparent; border:1px solid #33ff33; padding:0.3rem; border-radius:4px; font-family:inherit; }
     input[type="range"] { accent-color: #33ff33; }
-    select { background: #000; color: #33ff33; border: 1px solid #33ff33; padding: 0.3rem; font-family: inherit; }
     button {
       background: #33ff33; color: #000; border: none; padding: 0.4rem 1rem;
       font-weight: bold; font-family: inherit; border-radius: 4px; cursor: pointer; transition: 0.2s;
@@ -48,7 +47,7 @@
 </head>
 <body>
   <div class="terminal">
-    <h1>▸ ASCII_ART.LOCAL v2</h1>
+    <h1>▸ ASCII_ART.LOCAL (extended)</h1>
     <div id="jsonError" class="error"></div>
 
     <div class="controls">
@@ -56,18 +55,12 @@
       <label>🔤 Ширина <input type="range" id="widthSlider" min="30" max="200" value="100" step="5">
         <span id="widthValue">100</span>
       </label>
-      <label>🎨 Набор:
-        <select id="charsetSelect">
-          <option value="full">Из charset.json (большой)</option>
-          <option value="classic" selected>Классический (10 символов)</option>
-        </select>
-      </label>
       <button id="copyBtn" disabled>📋 Копировать</button>
       <button id="downloadBtn" disabled>💾 Сохранить .txt</button>
     </div>
 
     <pre id="output">// выберите изображение</pre>
-    <div class="footer-note">Используйте классический набор, если большой даёт "кашу"</div>
+    <div class="footer-note">charset.json · края могут быть неровными — это нормально</div>
   </div>
 
   <script>
@@ -79,14 +72,11 @@
       const downloadBtn = document.getElementById('downloadBtn');
       const copyBtn = document.getElementById('copyBtn');
       const jsonErrorDiv = document.getElementById('jsonError');
-      const charsetSelect = document.getElementById('charsetSelect');
 
-      let fullCharset = [];           // из JSON
-      const classicCharset = ['@', '%', '#', '*', '+', '=', '-', ':', '.', ' ']; // контрастный
-      let activeCharset = classicCharset; // по умолчанию классика
+      let asciiChars = [];
       let currentImage = null;
       let currentAscii = '';
-      const SYMBOL_RATIO = 0.55;      // проверенное значение
+      const SYMBOL_RATIO = 0.55;   // фиксированное, как в первой версии
 
       // --- загрузка charset.json ---
       async function loadCharset() {
@@ -94,25 +84,17 @@
           const resp = await fetch('charset.json');
           if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
           const data = await resp.json();
-          if (!Array.isArray(data) || data.length === 0) throw new Error('Пустой массив');
-          fullCharset = data.filter(ch => ch !== '\u2800'); // убираем брайлевский пробел
+          if (!Array.isArray(data) || data.length === 0) throw new Error('Массив пуст');
+          // убираем только брайлевский пробел, остальное оставляем как есть
+          asciiChars = data.filter(ch => ch !== '\u2800');
           jsonErrorDiv.style.display = 'none';
-          console.log('JSON загружен, символов:', fullCharset.length);
+          console.log('Загружен charset, символов:', asciiChars.length);
         } catch (err) {
           jsonErrorDiv.style.display = 'block';
-          jsonErrorDiv.textContent = `⚠️ ${err.message}. Большой набор недоступен.`;
-          fullCharset = [];
+          jsonErrorDiv.textContent = `⚠️ Ошибка загрузки charset.json: ${err.message}. Использую стандартный набор.`;
+          asciiChars = ['@', '%', '#', '*', '+', '=', '-', ':', '.', ' '];
         }
       }
-
-      // переключение набора
-      function updateActiveCharset() {
-        const val = charsetSelect.value;
-        activeCharset = (val === 'full' && fullCharset.length > 0) ? fullCharset : classicCharset;
-        updateAscii();
-      }
-
-      charsetSelect.addEventListener('change', updateActiveCharset);
 
       function imageToAscii(img, width) {
         const aspectRatio = img.height / img.width;
@@ -127,14 +109,14 @@
         const imageData = ctx.getImageData(0, 0, width, height);
         const pixels = imageData.data;
         let asciiStr = '';
-        const charCount = activeCharset.length;
+        const charCount = asciiChars.length;
 
         for (let y = 0; y < height; y++) {
           for (let x = 0; x < width; x++) {
             const idx = (y * width + x) * 4;
             const gray = 0.2126 * pixels[idx] + 0.7152 * pixels[idx+1] + 0.0722 * pixels[idx+2];
             const charIndex = Math.floor(gray / 255 * (charCount - 1));
-            asciiStr += activeCharset[charIndex];
+            asciiStr += asciiChars[charIndex];
           }
           asciiStr += '\n';
         }
@@ -148,6 +130,10 @@
           return;
         }
         const width = parseInt(widthSlider.value, 10);
+        if (!asciiChars.length) {
+          outputPre.textContent = '// загрузка charset...';
+          return;
+        }
         setTimeout(() => {
           try {
             currentAscii = imageToAscii(currentImage, width);
@@ -205,10 +191,9 @@
         } catch (err) { alert('Ошибка копирования: ' + err); }
       });
 
-      // инициализация
       window.addEventListener('load', async () => {
         await loadCharset();
-        updateActiveCharset(); // установит классический по умолчанию
+        updateAscii();
       });
     })();
   </script>
