@@ -3,152 +3,67 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ASCII-арт · локальный конвертер</title>
+  <title>ASCII-арт · локальный конвертер </title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       background-color: #0c0c0c;
       color: #33ff33;
       font-family: 'Courier New', monospace;
       min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 2rem 1rem;
+      display: flex; flex-direction: column; align-items: center; padding: 2rem 1rem;
     }
     .terminal {
-      max-width: 1000px;
-      width: 100%;
-      border: 2px solid #33ff33;
-      border-radius: 8px;
-      padding: 1.5rem;
+      max-width: 1000px; width: 100%;
+      border: 2px solid #33ff33; border-radius: 8px; padding: 1.5rem;
       background-color: #0a0a0a;
-      box-shadow: 0 0 15px rgba(51, 255, 51, 0.2);
+      box-shadow: 0 0 15px rgba(51,255,51,0.2);
     }
-    h1 {
-      font-size: 1.8rem;
-      margin-bottom: 1.2rem;
-      text-shadow: 0 0 5px #33ff33;
-      letter-spacing: 2px;
-    }
+    h1 { font-size: 1.8rem; margin-bottom: 1.2rem; text-shadow: 0 0 5px #33ff33; letter-spacing: 2px; }
     .controls {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 1rem;
-      align-items: center;
-      margin-bottom: 1.5rem;
-      padding: 1rem;
-      background: #111;
-      border: 1px dashed #33ff33;
-      border-radius: 5px;
+      display: flex; flex-wrap: wrap; gap: 1rem; align-items: center;
+      margin-bottom: 1.5rem; padding: 1rem; background: #111;
+      border: 1px dashed #33ff33; border-radius: 5px;
     }
-    label {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      cursor: pointer;
-    }
-    input[type="file"] {
-      color: #33ff33;
-      background: transparent;
-      border: 1px solid #33ff33;
-      padding: 0.3rem;
-      border-radius: 4px;
-      font-family: inherit;
-    }
-    input[type="range"] {
-      accent-color: #33ff33;
-    }
+    label { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; }
+    input[type="file"] { color:#33ff33; background:transparent; border:1px solid #33ff33; padding:0.3rem; border-radius:4px; font-family:inherit; }
+    input[type="range"] { accent-color: #33ff33; }
     button {
-      background: #33ff33;
-      color: #000;
-      border: none;
-      padding: 0.4rem 1rem;
-      font-weight: bold;
-      font-family: inherit;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: 0.2s;
+      background: #33ff33; color: #000; border: none; padding: 0.4rem 1rem;
+      font-weight: bold; font-family: inherit; border-radius: 4px; cursor: pointer; transition: 0.2s;
     }
-    button:hover {
-      background: #00cc00;
-      box-shadow: 0 0 10px #33ff33;
-    }
-    button:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-    .error {
-      color: #ff5555;
-      background: #1a0000;
-      border: 1px solid #ff5555;
-      padding: 0.5rem;
-      margin-bottom: 1rem;
-      display: none;
-    }
+    button:hover { background: #00cc00; box-shadow: 0 0 10px #33ff33; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .error { color:#ff5555; background:#1a0000; border:1px solid #ff5555; padding:0.5rem; margin-bottom:1rem; display:none; }
     pre {
-      background: #000;
-      color: #33ff33;
-      padding: 1rem;
-      border: 1px solid #33ff33;
-      border-radius: 5px;
-      overflow-x: auto;
-      font-size: 0.5rem;        /* маленький шрифт для читаемого арта */
-      line-height: 1;
-      white-space: pre;
-      max-height: 70vh;
-      overflow-y: auto;
-      margin-top: 1rem;
+      background: #000; color: #33ff33; padding: 1rem;
+      border: 1px solid #33ff33; border-radius: 5px; overflow-x: auto;
+      font-size: 0.5rem; line-height: 1; white-space: pre;
+      max-height: 70vh; overflow-y: auto; margin-top: 1rem;
     }
-    .footer-note {
-      margin-top: 1rem;
-      font-size: 0.8rem;
-      opacity: 0.7;
-    }
-    #widthValue {
-      font-weight: bold;
-    }
-    @media (max-width: 600px) {
-      .controls {
-        flex-direction: column;
-        align-items: flex-start;
-      }
-    }
+    .footer-note { margin-top: 1rem; font-size: 0.8rem; opacity: 0.7; }
+    #widthValue { font-weight: bold; }
+    @media (max-width: 600px) { .controls { flex-direction: column; align-items: flex-start; } }
   </style>
 </head>
 <body>
   <div class="terminal">
-    <h1>▸ ASCII_ART.LOCAL</h1>
-
+    <h1>▸ ASCII_ART.LOCAL (fixed)</h1>
     <div id="jsonError" class="error"></div>
 
     <div class="controls">
-      <label>
-        📁 Выбрать картинку
-        <input type="file" id="imageInput" accept="image/*">
-      </label>
-
-      <label>
-        🔤 Ширина (символов)
-        <input type="range" id="widthSlider" min="30" max="200" value="100" step="5">
-        <span id="widthValue">100</span>
-      </label>
-
+      <label>📁 Выбрать картинку <input type="file" id="imageInput" accept="image/*"></label>
+      <label>🔤 Ширина <input type="range" id="widthSlider" min="30" max="200" value="100" step="5"> <span id="widthValue">100</span></label>
       <button id="copyBtn" disabled>📋 Копировать</button>
       <button id="downloadBtn" disabled>💾 Сохранить .txt</button>
     </div>
 
-    <pre id="output">// выберите изображение, чтобы увидеть ASCII-арт</pre>
-    <div class="footer-note">charset.json · всё работает локально · без интернета</div>
+    <pre id="output">// выберите изображение</pre>
+    <div class="footer-note">charset.json · пропорции автоопределены</div>
   </div>
 
   <script>
     (function() {
-      // --- элементы DOM ---
       const imageInput = document.getElementById('imageInput');
       const widthSlider = document.getElementById('widthSlider');
       const widthValue = document.getElementById('widthValue');
@@ -157,10 +72,26 @@
       const copyBtn = document.getElementById('copyBtn');
       const jsonErrorDiv = document.getElementById('jsonError');
 
-      // --- состояние ---
-      let asciiChars = [];            // загруженный из JSON массив
-      let currentImage = null;       // объект HTMLImageElement
-      let currentAscii = '';         // последний сгенерированный арт
+      let asciiChars = [];
+      let currentImage = null;
+      let currentAscii = '';
+      let symbolRatio = 0.5; // будет переопределено после замера
+
+      // --- замер реального соотношения сторон символа ---
+      function measureSymbolRatio() {
+        const testEl = document.createElement('span');
+        testEl.textContent = '@'; // любой символ из набора
+        testEl.style.fontFamily = "'Courier New', monospace";
+        testEl.style.fontSize = '16px'; // фиксированный размер
+        testEl.style.position = 'absolute';
+        testEl.style.visibility = 'hidden';
+        testEl.style.whiteSpace = 'pre';
+        document.body.appendChild(testEl);
+        const rect = testEl.getBoundingClientRect();
+        const ratio = rect.height / rect.width; // высота / ширина
+        document.body.removeChild(testEl);
+        return ratio;
+      }
 
       // --- загрузка charset.json ---
       async function loadCharset() {
@@ -168,50 +99,44 @@
           const response = await fetch('charset.json');
           if (!response.ok) throw new Error(`HTTP ${response.status}`);
           const data = await response.json();
-          if (!Array.isArray(data) || data.length === 0) {
-            throw new Error('JSON должен быть непустым массивом строк');
-          }
-          asciiChars = data;
+          if (!Array.isArray(data) || data.length === 0) throw new Error('JSON должен быть непустым массивом');
+          // фильтруем потенциально широкие символы (можно добавить свои)
+          asciiChars = data.filter(ch => {
+            // исключаем брайлевский пробел и некоторые широкие символы, если нужно
+            if (ch === '\u2800') return false; // брайлевский пробел
+            // дополнительные проверки можно добавить
+            return true;
+          });
+          if (asciiChars.length === 0) throw new Error('После фильтрации не осталось символов');
           jsonErrorDiv.style.display = 'none';
           console.log('Charset загружен:', asciiChars);
         } catch (err) {
           jsonErrorDiv.style.display = 'block';
-          jsonErrorDiv.textContent = `⚠️ Ошибка загрузки charset.json: ${err.message}. Использую стандартный набор.`;
-          // fallback — стандартный набор
+          jsonErrorDiv.textContent = `⚠️ Ошибка: ${err.message}. Использую стандартный набор.`;
           asciiChars = ['@', '%', '#', '*', '+', '=', '-', ':', '.', ' '];
         }
       }
 
-      // --- конвертация изображения в ASCII ---
+      // --- конвертация ---
       function imageToAscii(img, width) {
-        // рассчитываем высоту с поправкой на пропорции символов (~0.55)
         const aspectRatio = img.height / img.width;
-        const symbolRatio = 0.55;   // коэффициент сжатия по вертикали для моноширинного шрифта
         const height = Math.floor(width * aspectRatio * symbolRatio);
 
-        // создаём canvas и рисуем уменьшенное изображение
         const canvas = document.createElement('canvas');
         canvas.width = width;
         canvas.height = height;
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, width, height);
 
-        // получаем данные пикселей
         const imageData = ctx.getImageData(0, 0, width, height);
-        const pixels = imageData.data; // [r,g,b,a, r,g,b,a, ...]
-
+        const pixels = imageData.data;
         let asciiStr = '';
         const charCount = asciiChars.length;
 
         for (let y = 0; y < height; y++) {
           for (let x = 0; x < width; x++) {
             const idx = (y * width + x) * 4;
-            const r = pixels[idx];
-            const g = pixels[idx + 1];
-            const b = pixels[idx + 2];
-            // перевод в оттенок серого (стандартная яркость)
-            const gray = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-            // маппинг 0..255 на индекс символа (0 — самый тёмный символ)
+            const gray = 0.2126 * pixels[idx] + 0.7152 * pixels[idx+1] + 0.0722 * pixels[idx+2];
             const charIndex = Math.floor(gray / 255 * (charCount - 1));
             asciiStr += asciiChars[charIndex];
           }
@@ -220,114 +145,82 @@
         return asciiStr;
       }
 
-      // --- обновление вывода ---
       async function updateAscii() {
         if (!currentImage) {
-          outputPre.textContent = '// выберите изображение, чтобы увидеть ASCII-арт';
-          downloadBtn.disabled = true;
-          copyBtn.disabled = true;
+          outputPre.textContent = '// выберите изображение';
+          downloadBtn.disabled = copyBtn.disabled = true;
           return;
         }
-
         const width = parseInt(widthSlider.value, 10);
         if (!asciiChars.length) {
-          outputPre.textContent = '// ожидание загрузки charset.json...';
+          outputPre.textContent = '// загрузка charset...';
           return;
         }
-
-        // конвертируем (может быть немного тяжёлым, используем setTimeout для отзывчивости)
         setTimeout(() => {
           try {
             currentAscii = imageToAscii(currentImage, width);
             outputPre.textContent = currentAscii;
-            downloadBtn.disabled = false;
-            copyBtn.disabled = false;
+            downloadBtn.disabled = copyBtn.disabled = false;
           } catch (e) {
-            outputPre.textContent = `// ошибка: ${e.message}`;
-            downloadBtn.disabled = true;
-            copyBtn.disabled = true;
+            outputPre.textContent = '// ошибка: ' + e.message;
+            downloadBtn.disabled = copyBtn.disabled = true;
           }
         }, 10);
       }
 
-      // --- загрузка изображения из файла ---
-      imageInput.addEventListener('change', (e) => {
+      // --- обработчики событий ---
+      imageInput.addEventListener('change', e => {
         const file = e.target.files[0];
         if (!file) return;
-
         const reader = new FileReader();
-        reader.onload = (ev) => {
+        reader.onload = ev => {
           const img = new Image();
-          img.onload = () => {
-            currentImage = img;
-            updateAscii();
-          };
+          img.onload = () => { currentImage = img; updateAscii(); };
           img.onerror = () => {
             outputPre.textContent = '// не удалось загрузить изображение';
             currentImage = null;
-            downloadBtn.disabled = true;
-            copyBtn.disabled = true;
+            downloadBtn.disabled = copyBtn.disabled = true;
           };
           img.src = ev.target.result;
         };
         reader.readAsDataURL(file);
       });
 
-      // --- изменение ширины ---
       widthSlider.addEventListener('input', () => {
         widthValue.textContent = widthSlider.value;
         updateAscii();
       });
 
-      // --- скачивание результата ---
       downloadBtn.addEventListener('click', () => {
         if (!currentAscii) return;
-        const blob = new Blob([currentAscii], { type: 'text/plain;charset=utf-8' });
+        const blob = new Blob([currentAscii], {type:'text/plain;charset=utf-8'});
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
-        a.href = url;
-        a.download = 'ascii_art.txt';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+        a.href = url; a.download = 'ascii_art.txt';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
         URL.revokeObjectURL(url);
       });
 
-      // --- копирование в буфер обмена ---
       copyBtn.addEventListener('click', async () => {
         if (!currentAscii) return;
-
         try {
-          // современный API
-          if (navigator.clipboard && navigator.clipboard.writeText) {
-            await navigator.clipboard.writeText(currentAscii);
-          } else {
-            // fallback для старых браузеров (textarea)
-            const textarea = document.createElement('textarea');
-            textarea.value = currentAscii;
-            textarea.style.position = 'fixed';
-            textarea.style.opacity = '0';
-            document.body.appendChild(textarea);
-            textarea.select();
-            document.execCommand('copy');
-            document.body.removeChild(textarea);
-          }
-
-          // визуальный фидбэк
-          const originalText = copyBtn.textContent;
+          await navigator.clipboard.writeText(currentAscii);
           copyBtn.textContent = '✓ Скопировано';
           copyBtn.style.background = '#00cc00';
           setTimeout(() => {
-            copyBtn.textContent = originalText;
+            copyBtn.textContent = '📋 Копировать';
             copyBtn.style.background = '#33ff33';
           }, 1500);
         } catch (err) {
-          alert('Не удалось скопировать: ' + err);
+          alert('Ошибка копирования: ' + err);
         }
       });
 
       // --- инициализация ---
-      loadCharset().then(() => {
+      window.addEventListener('load', async () => {
+        symbolRatio = measureSymbolRatio(); // автоопределение
+        console.log('Symbol ratio:', symbolRatio);
+        await loadCharset();
         updateAscii();
       });
     })();
