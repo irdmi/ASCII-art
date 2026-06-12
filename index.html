@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ASCII-арт · локальный конвертер (расширенный)</title>
+  <title>ASCII-арт · локальный конвертер </title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -27,6 +27,7 @@
     label { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; }
     input[type="file"] { color:#33ff33; background:transparent; border:1px solid #33ff33; padding:0.3rem; border-radius:4px; font-family:inherit; }
     input[type="range"] { accent-color: #33ff33; }
+    select { background: #000; color: #33ff33; border: 1px solid #33ff33; padding: 0.3rem; font-family: inherit; }
     button {
       background: #33ff33; color: #000; border: none; padding: 0.4rem 1rem;
       font-weight: bold; font-family: inherit; border-radius: 4px; cursor: pointer; transition: 0.2s;
@@ -47,7 +48,7 @@
 </head>
 <body>
   <div class="terminal">
-    <h1>▸ ASCII_ART.LOCAL (extended)</h1>
+    <h1>▸ ASCII_ART.LOCAL — выбор набора</h1>
     <div id="jsonError" class="error"></div>
 
     <div class="controls">
@@ -55,16 +56,40 @@
       <label>🔤 Ширина <input type="range" id="widthSlider" min="30" max="200" value="100" step="5">
         <span id="widthValue">100</span>
       </label>
+      <label>🎨 Набор:
+        <select id="charsetSelect">
+          <option value="classic" selected>Классический (10)</option>
+          <option value="blocks">Блоки (25)</option>
+          <option value="detailed">Детальный (70)</option>
+          <option value="letters">Буквы (50)</option>
+          <option value="minimal">Минимальный (5)</option>
+          <option value="json">Из charset.json </option>
+        </select>
+      </label>
       <button id="copyBtn" disabled>📋 Копировать</button>
       <button id="downloadBtn" disabled>💾 Сохранить .txt</button>
     </div>
 
     <pre id="output">// выберите изображение</pre>
-    <div class="footer-note">charset.json · края могут быть неровными — это нормально</div>
+    <div class="footer-note">Встроенные наборы + опциональный charset.json</div>
   </div>
 
   <script>
     (function() {
+      // --- предустановленные наборы (от тёмного к светлому) ---
+      const presets = {
+        classic:   ['@', '%', '#', '*', '+', '=', '-', ':', '.', ' '],
+        blocks:    ['█','▓','▒','░','▇','▆','▅','▄','▃','▂','▁','■','□','▪','▫','●','○','◆','◇','▲','△','▼','▽','◀','◁','▶','▷',' '],
+        detailed:  ['█','▓','▒','░','@','&','%','#','★','☆','♦','◉','●','◈','◇','◆','■','□','▇','▆','▅','▄','▃','▂','▁','▀','▼','▲','◀','▶',
+                    'M','W','N','8','B','0','Q','D','O','G','E','H','K','A','U','V','Z','P','R','S','T','X','Y','J','L','C','F','I','9',
+                    '7','6','5','4','3','2','1','?','!','=','+','*','^','~','#','%','$','€','¥','₽','«','»','"',"'",'`','|','/','\\','(',')',
+                    '[',']','{','}','<','>',':',',','.','-','_','¨','°','·',' '],
+        letters:   ['M','W','N','8','B','0','Q','D','O','G','E','H','K','A','U','V','Z','P','R','S','T','X','Y','J','L','C','F','I','9',
+                    '7','6','5','4','3','2','1','?','!','=','+','*','^','~','#','%','$','€','¥','₽','«','»','"',"'",'`','|','/','\\','(',')',
+                    '[',']','{','}','<','>',':',',','.','-','_','¨','°','·',' '],
+        minimal:   ['#', '.', ':', '-', ' ']
+      };
+
       const imageInput = document.getElementById('imageInput');
       const widthSlider = document.getElementById('widthSlider');
       const widthValue = document.getElementById('widthValue');
@@ -72,29 +97,43 @@
       const downloadBtn = document.getElementById('downloadBtn');
       const copyBtn = document.getElementById('copyBtn');
       const jsonErrorDiv = document.getElementById('jsonError');
+      const charsetSelect = document.getElementById('charsetSelect');
 
-      let asciiChars = [];
+      let jsonCharset = [];            // загруженный из charset.json
+      let activeCharset = presets.classic;
       let currentImage = null;
       let currentAscii = '';
-      const SYMBOL_RATIO = 0.55;   // фиксированное, как в первой версии
+      const SYMBOL_RATIO = 0.55;
 
       // --- загрузка charset.json ---
-      async function loadCharset() {
+      async function loadJsonCharset() {
         try {
           const resp = await fetch('charset.json');
           if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
           const data = await resp.json();
-          if (!Array.isArray(data) || data.length === 0) throw new Error('Массив пуст');
-          // убираем только брайлевский пробел, остальное оставляем как есть
-          asciiChars = data.filter(ch => ch !== '\u2800');
+          if (!Array.isArray(data) || data.length === 0) throw new Error('пустой массив');
+          jsonCharset = data.filter(ch => ch !== '\u2800'); // убираем брайлевский пробел
           jsonErrorDiv.style.display = 'none';
-          console.log('Загружен charset, символов:', asciiChars.length);
+          console.log('charset.json загружен, символов:', jsonCharset.length);
         } catch (err) {
           jsonErrorDiv.style.display = 'block';
-          jsonErrorDiv.textContent = `⚠️ Ошибка загрузки charset.json: ${err.message}. Использую стандартный набор.`;
-          asciiChars = ['@', '%', '#', '*', '+', '=', '-', ':', '.', ' '];
+          jsonErrorDiv.textContent = `⚠️ charset.json не загружен: ${err.message}. Пункт "Из charset.json" будет использовать классический набор.`;
+          jsonCharset = [];
         }
       }
+
+      // обновление активного набора по выбору
+      function updateActiveCharset() {
+        const val = charsetSelect.value;
+        if (val === 'json') {
+          activeCharset = jsonCharset.length > 0 ? jsonCharset : presets.classic;
+        } else {
+          activeCharset = presets[val] || presets.classic;
+        }
+        updateAscii();
+      }
+
+      charsetSelect.addEventListener('change', updateActiveCharset);
 
       function imageToAscii(img, width) {
         const aspectRatio = img.height / img.width;
@@ -109,14 +148,14 @@
         const imageData = ctx.getImageData(0, 0, width, height);
         const pixels = imageData.data;
         let asciiStr = '';
-        const charCount = asciiChars.length;
+        const charCount = activeCharset.length;
 
         for (let y = 0; y < height; y++) {
           for (let x = 0; x < width; x++) {
             const idx = (y * width + x) * 4;
             const gray = 0.2126 * pixels[idx] + 0.7152 * pixels[idx+1] + 0.0722 * pixels[idx+2];
             const charIndex = Math.floor(gray / 255 * (charCount - 1));
-            asciiStr += asciiChars[charIndex];
+            asciiStr += activeCharset[charIndex];
           }
           asciiStr += '\n';
         }
@@ -130,8 +169,8 @@
           return;
         }
         const width = parseInt(widthSlider.value, 10);
-        if (!asciiChars.length) {
-          outputPre.textContent = '// загрузка charset...';
+        if (!activeCharset.length) {
+          outputPre.textContent = '// набор символов пуст';
           return;
         }
         setTimeout(() => {
@@ -191,9 +230,14 @@
         } catch (err) { alert('Ошибка копирования: ' + err); }
       });
 
+      // старт
       window.addEventListener('load', async () => {
-        await loadCharset();
-        updateAscii();
+        await loadJsonCharset();
+        // если json не загрузился – скрываем или делаем пункт неактивным (опционально)
+        if (jsonCharset.length === 0) {
+          // можно убрать пункт "json" или просто оставить, он будет использовать классический
+        }
+        updateActiveCharset(); // классический по умолчанию
       });
     })();
   </script>
